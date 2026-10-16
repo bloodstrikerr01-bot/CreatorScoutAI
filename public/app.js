@@ -15,14 +15,9 @@ const walletStatus = document.querySelector("#wallet-status");
 const walletDisconnectKey = "creatorscout-wallet-disconnected";
 let connectedWalletAddress = null;
 let isSubmitting = false;
-let observedWalletProvider = null;
 
 const selectedPlatform = () =>
   document.querySelector('input[name="platform"]:checked').value;
-
-function abbreviatedAddress(address) {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
 
 function updateSearchAvailability() {
   const connected = Boolean(connectedWalletAddress);
@@ -34,24 +29,8 @@ function updateSearchAvailability() {
       : "Connect wallet to search";
 }
 
-function getMetaMaskProvider() {
-  const legacyProvider = window.ethereum;
-  const providers = legacyProvider?.providers || (legacyProvider ? [legacyProvider] : []);
-  return providers.find((provider) => provider.isMetaMask && !provider.isRabby) || null;
-}
-
-function observeWalletProvider(provider) {
-  if (!provider?.on || provider === observedWalletProvider) return;
-  observedWalletProvider = provider;
-  provider.on("accountsChanged", (accounts) => {
-    if (accounts?.[0]) {
-      localStorage.removeItem(walletDisconnectKey);
-      setWalletUI(accounts[0]);
-      walletStatus.textContent = "Wallet account changed.";
-    } else {
-      disconnectWallet(false);
-    }
-  });
+function abbreviatedAddress(address) {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
 function setWalletUI(address) {
@@ -59,20 +38,18 @@ function setWalletUI(address) {
   walletButton.classList.toggle("connected", Boolean(connectedWalletAddress));
   walletButtonLabel.textContent = connectedWalletAddress
     ? abbreviatedAddress(connectedWalletAddress)
-    : "Connect MetaMask";
+    : "Connect wallet";
   updateSearchAvailability();
 }
 
 async function disconnectWallet(rememberChoice = true) {
-  const provider = getMetaMaskProvider();
-  if (provider && connectedWalletAddress) {
+  if (window.ethereum && connectedWalletAddress) {
     try {
-      await provider.request({
+      await window.ethereum.request({
         method: "wallet_revokePermissions",
         params: [{ eth_accounts: {} }],
       });
     } catch (error) {
-      // Some wallets do not support permission revocation. The app session still ends below.
       if (error?.code !== 4200) {
         console.warn("Wallet permission revocation was not completed.", error);
       }
@@ -84,21 +61,19 @@ async function disconnectWallet(rememberChoice = true) {
 }
 
 async function connectWallet() {
-  const provider = getMetaMaskProvider();
-  if (!provider) {
-    walletStatus.textContent = "Install or unlock MetaMask to connect.";
+  if (!window.ethereum) {
+    walletStatus.textContent = "Install a Celo-compatible wallet to connect.";
     return;
   }
 
-  observeWalletProvider(provider);
   walletButton.disabled = true;
-  walletStatus.textContent = "Confirm the connection in MetaMask.";
+  walletStatus.textContent = "Confirm the connection in your wallet.";
   try {
-    const accounts = await provider.request({ method: "eth_requestAccounts" });
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
     if (!accounts?.[0]) throw new Error("No wallet account was returned.");
     localStorage.removeItem(walletDisconnectKey);
     setWalletUI(accounts[0]);
-    walletStatus.textContent = "MetaMask connected. Scout requests will not prompt this wallet for payment.";
+    walletStatus.textContent = "Connected once. Searches do not prompt this wallet for transactions.";
   } catch (error) {
     walletStatus.textContent = error?.code === 4001
       ? "Wallet connection was cancelled."
@@ -109,12 +84,9 @@ async function connectWallet() {
 }
 
 async function restoreWalletConnection() {
-  if (localStorage.getItem(walletDisconnectKey) === "true") return;
-  const provider = getMetaMaskProvider();
-  if (!provider) return;
+  if (!window.ethereum || localStorage.getItem(walletDisconnectKey) === "true") return;
   try {
-    observeWalletProvider(provider);
-    const accounts = await provider.request({ method: "eth_accounts" });
+    const accounts = await window.ethereum.request({ method: "eth_accounts" });
     if (accounts?.[0]) setWalletUI(accounts[0]);
   } catch {
     // The page remains usable if the wallet extension is unavailable.
@@ -222,6 +194,17 @@ walletButton.addEventListener("click", async () => {
     connectWallet();
   }
 });
+if (window.ethereum) {
+  window.ethereum.on("accountsChanged", (accounts) => {
+    if (accounts?.[0]) {
+      localStorage.removeItem(walletDisconnectKey);
+      setWalletUI(accounts[0]);
+      walletStatus.textContent = "Wallet account changed.";
+    } else {
+      disconnectWallet(false);
+    }
+  });
+}
 document.querySelector("#new-scout").addEventListener("click", () => {
   results.hidden = true;
   document.querySelector("#scout").scrollIntoView({ behavior: "smooth", block: "start" });

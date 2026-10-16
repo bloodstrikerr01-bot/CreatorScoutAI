@@ -28,7 +28,7 @@ button { cursor: pointer; }
 .wallet-button.connected { border-color: var(--lime); color: var(--lime); }
 .wallet-dot { width: 7px; height: 7px; border-radius: 50%; background: #8e9995; }
 .wallet-button.connected .wallet-dot { background: var(--lime); box-shadow: 0 0 0 4px rgba(201,255,85,.12); }
-.wallet-status { position: absolute; right: 0; top: calc(100% + 7px); width: max-content; max-width: 225px; margin: 0; color: #d0d8d4; font-size: 10px; line-height: 1.35; text-align: right; }
+.wallet-status { position: absolute; right: 0; top: calc(100% + 7px); width: max-content; max-width: 240px; margin: 0; color: #d0d8d4; font-size: 10px; line-height: 1.35; text-align: right; }
 .hero-copy { padding-top: 101px; max-width: 1160px; }
 .eyebrow { margin: 0 0 17px; color: inherit; font: 500 11px/1.2 "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
 .eyebrow span { display: inline-block; width: 8px; height: 8px; background: var(--lime); border-radius: 50%; }
