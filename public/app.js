@@ -112,7 +112,11 @@ function renderResults(data, context) {
   } else {
     const transaction = data.proof?.celoTransactionHash || "No transaction identifier was returned.";
     const endpoint = data.proof?.useBuyEndpoint || "";
-    proofCard.innerHTML = `<strong>BUY / CELO PROOF</strong><br>Endpoint: ${escapeHtml(endpoint)}<br>Transaction: ${escapeHtml(transaction)}`;
+    const hasTransactionHash = /^0x[a-fA-F0-9]{64}$/.test(transaction);
+    const transactionProof = hasTransactionHash
+      ? `<a class="proof-link" href="https://celoscan.io/tx/${transaction}" target="_blank" rel="noreferrer">View settlement on CeloScan <span aria-hidden="true">↗</span></a>`
+      : `Transaction: ${escapeHtml(transaction)}`;
+    proofCard.innerHTML = `<strong>BUY / CELO PROOF</strong><br>Endpoint: ${escapeHtml(endpoint)}<br>${transactionProof}`;
   }
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });

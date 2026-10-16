@@ -104,6 +104,8 @@ h2 { font-size: clamp(34px, 4vw, 54px); line-height: 1.03; }
 .empty-results { grid-column: 1 / -1; color: var(--muted); padding: 35px; text-align: center; border: 1px dashed var(--line); }
 .proof-card { margin-top: 24px; padding: 16px 18px; background: var(--ink); color: #ced6d2; font: 10px/1.6 "DM Mono", monospace; overflow-wrap: anywhere; }
 .proof-card strong { color: var(--lime); font-weight: 500; }
+.proof-link { display: inline-block; margin-top: 6px; color: var(--lime); font-weight: 500; text-decoration-color: rgba(201,255,85,.5); }
+.proof-link:hover { text-decoration-color: var(--lime); }
 
 footer { border-top: 1px solid var(--line); padding: 22px max(5vw, 32px); max-width: none; display: flex; justify-content: space-between; color: var(--muted); font: 10px "DM Mono", monospace; }
 
