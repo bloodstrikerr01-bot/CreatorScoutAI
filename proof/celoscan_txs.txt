@@ -1,0 +1,7 @@
+CreatorScout AI - On-Chain Settlement Proofs
+Team Tag: celo_07fa06ecd2c7
+
+Transaction 1 (x402 Buy VM Purchase):
+https://celoscan.io/tx/0x<YOUR_CELO_TRANSACTION_HASH_HERE>
+
+https://celoscan.io/tx/0x8d92db0772166401c2e19bf90569d74d845d03c17c4dc292640600136ae7298c

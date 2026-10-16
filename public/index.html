@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Find relevant creator profiles across YouTube, Instagram, TikTok, and X with CreatorScout AI."
+    />
+    <title>CreatorScout AI | Find the right creators</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <nav class="nav" aria-label="Primary navigation">
+          <a class="brand" href="#top" aria-label="CreatorScout AI home">
+            <span class="brand-mark" aria-hidden="true">C</span>
+            <span>CreatorScout<span class="brand-accent">AI</span></span>
+          </a>
+          <div class="nav-actions">
+            <a class="nav-link" href="#scout">Start a scout <span aria-hidden="true">↗</span></a>
+            <div class="wallet-control">
+              <button class="wallet-button" id="wallet-button" type="button">
+                <span class="wallet-dot" aria-hidden="true"></span>
+                <span id="wallet-button-label">Connect MetaMask</span>
+              </button>
+              <p class="wallet-status" id="wallet-status" role="status" aria-live="polite"></p>
+            </div>
+          </div>
+        </nav>
+
+        <div class="hero-copy" id="top">
+          <p class="eyebrow"><span></span> Creator discovery, paid by Celo</p>
+          <h1>Creators who fit.<br /><em>Not just creators who rank.</em></h1>
+          <p class="hero-description">
+            Turn a campaign brief into a shortlist of public creator profiles across the platforms your audience already uses.
+          </p>
+          <div class="platform-strip" aria-label="Supported platforms">
+            <span>YouTube</span><span>Instagram</span><span>TikTok</span><span>X</span>
+          </div>
+        </div>
+
+        <div class="hero-orb orb-one" aria-hidden="true"></div>
+        <div class="hero-orb orb-two" aria-hidden="true"></div>
+      </section>
+
+      <section class="scout-section" id="scout">
+        <div class="section-intro">
+          <p class="eyebrow"><span></span> New campaign</p>
+          <h2>Give us the brief.</h2>
+          <p>We’ll search public creator data and return profiles ready for your shortlist.</p>
+          <div class="payment-note">
+            <span class="note-icon" aria-hidden="true">$</span>
+            <p><strong>One wallet connection.</strong> Buy research is paid by the app’s configured agent wallet, within your spend cap.</p>
+          </div>
+        </div>
+
+        <form class="scout-form" id="scout-form">
+          <div class="form-header">
+            <p>Campaign details</p>
+            <span>01 / 01</span>
+          </div>
+
+          <label class="field">
+            <span>What kind of creator are you looking for?</span>
+            <input
+              id="niche"
+              name="niche"
+              type="text"
+              placeholder="e.g. skincare, gaming, sustainable fashion"
+              maxlength="100"
+              required
+            />
+          </label>
+
+          <div class="brief-grid">
+            <label class="field">
+              <span>Brand or campaign name <small>Optional</small></span>
+              <input id="brand-name" type="text" placeholder="e.g. Glow Theory" maxlength="80" />
+            </label>
+            <label class="field">
+              <span>What are you offering? <small>Optional</small></span>
+              <input id="campaign-offer" type="text" placeholder="e.g. a paid product launch partnership" maxlength="180" />
+            </label>
+          </div>
+
+          <fieldset class="field platform-fieldset">
+            <legend>Where should we look?</legend>
+            <div class="platform-options">
+              <label class="platform-option">
+                <input type="radio" name="platform" value="YouTube" checked />
+                <span class="platform-icon youtube">▶</span><span>YouTube</span>
+              </label>
+              <label class="platform-option">
+                <input type="radio" name="platform" value="Instagram" />
+                <span class="platform-icon instagram">◎</span><span>Instagram</span>
+              </label>
+              <label class="platform-option">
+                <input type="radio" name="platform" value="TikTok" />
+                <span class="platform-icon tiktok">♪</span><span>TikTok</span>
+              </label>
+              <label class="platform-option">
+                <input type="radio" name="platform" value="X" />
+                <span class="platform-icon x">𝕏</span><span>X</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="field conditional-field" id="instagram-field" hidden>
+            <span>Whose Instagram profile should we enrich?</span>
+            <input id="instagram-handle" name="instagram_handle" type="text" placeholder="@creatorhandle" maxlength="64" />
+            <small>Instagram searches one public profile at a time.</small>
+          </label>
+
+          <div class="budget-grid">
+            <label class="field">
+              <span>Campaign budget <small>USD</small></span>
+              <div class="currency-input"><span>$</span><input id="budget" name="budget" type="number" min="1" step="1" value="300" required /></div>
+            </label>
+            <label class="field">
+              <span>Research spend cap <small>USDC · minimum $1</small></span>
+              <div class="currency-input"><span>$</span><input id="research-spend" name="max_research_spend" type="number" min="1" step="0.01" value="1.00" required /></div>
+            </label>
+          </div>
+
+          <p class="form-disclosure">A request triggers a Buy x402 payment on Celo, up to your research cap. Add campaign details to generate tailored, ready-to-send DMs.</p>
+          <button class="submit-button" type="submit" disabled>
+            <span class="submit-label">Connect wallet to search</span><span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="results" id="results" hidden aria-live="polite">
+        <div class="results-heading">
+          <div>
+            <p class="eyebrow"><span></span> Scout results</p>
+            <h2 id="results-title">Your creator shortlist</h2>
+          </div>
+          <button class="text-button" id="new-scout" type="button">New search</button>
+        </div>
+        <div class="creator-grid" id="creator-grid"></div>
+        <div class="proof-card" id="proof-card"></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>CreatorScout AI</span>
+      <span>Built with Buy + Celo</span>
+    </footer>
+    <script src="/app.js"></script>
+  </body>
+</html>
