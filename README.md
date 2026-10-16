@@ -18,7 +18,7 @@ CreatorScout AI is a prototype creator-research API. It routes a niche search to
 ## Requirements
 
 - Node.js 20 or newer.
-- A Celo Mainnet wallet with enough USDC for the selected Buy request.
+- A Celo Mainnet wallet with enough USDC for the selected Buy request. MetaMask is recommended.
 - A Celo RPC URL.
 
 Buy payments are real and irreversible. Use a dedicated low-balance wallet. `max_research_spend` is a per-request USDC spend cap; a request whose x402 quote exceeds the cap is rejected before signing.
