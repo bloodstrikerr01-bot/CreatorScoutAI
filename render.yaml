@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: creatorscout-ai
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AGENT_PRIVATE_KEY
+        sync: false
+      - key: CELO_RPC_URL
+        value: https://forno.celo.org
+      - key: TEAM_TAG
+        value: celo_07fa06ecd2c7

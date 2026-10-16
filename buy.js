@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { toDataSuffix } from "@celo/attribution-tags";
 import { wrapFetchWithPayment, x402Client as X402Client } from "@x402/fetch";
 import { ExactEvmScheme } from "@x402/evm";
 import { createWalletClient, getAddress, http } from "viem";
@@ -17,6 +18,9 @@ const PLATFORM_ENDPOINTS = {
 
 const CELO_USDC_ADDRESS = getAddress(
   "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",
+);
+const TEAM_TAG_SUFFIX = toDataSuffix(
+  process.env.TEAM_TAG || "celo_07fa06ecd2c7",
 );
 const BUY_REQUEST_TIMEOUT_MS = 120_000;
 const EIP712_TYPES = {
@@ -143,6 +147,7 @@ export async function executeBuyScoutJob({
     account,
     chain: celo,
     transport: http(process.env.CELO_RPC_URL || "https://forno.celo.org"),
+    dataSuffix: TEAM_TAG_SUFFIX,
   });
   const rpcUrl = process.env.CELO_RPC_URL || "https://forno.celo.org";
   const maxAmountAtomic = usdToAtomic(maxSpendUsd).toString();
