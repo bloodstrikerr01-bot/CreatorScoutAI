@@ -26,13 +26,6 @@
           </a>
           <div class="nav-actions">
             <a class="nav-link" href="#scout">Start a scout <span aria-hidden="true">↗</span></a>
-            <div class="wallet-control">
-              <button class="wallet-button" id="wallet-button" type="button">
-                <span class="wallet-dot" aria-hidden="true"></span>
-                <span id="wallet-button-label">Connect wallet</span>
-              </button>
-              <p class="wallet-status" id="wallet-status" role="status" aria-live="polite"></p>
-            </div>
           </div>
         </nav>
 
@@ -58,7 +51,7 @@
           <p>We’ll search public creator data and return profiles ready for your shortlist.</p>
           <div class="payment-note">
             <span class="note-icon" aria-hidden="true">$</span>
-            <p><strong>Connect once, then search.</strong> Buy research is paid by the app’s configured agent wallet, within your spend cap.</p>
+            <p><strong>Try it from any device.</strong> Each public live scout is funded by the app's agent wallet, capped at 1 USDC.</p>
           </div>
         </div>
 
@@ -125,15 +118,18 @@
               <div class="currency-input"><span>$</span><input id="budget" name="budget" type="number" min="1" step="1" value="300" required /></div>
             </label>
             <label class="field">
-              <span>Research spend cap <small>USDC · minimum $1</small></span>
-              <div class="currency-input"><span>$</span><input id="research-spend" name="max_research_spend" type="number" min="1" step="0.01" value="1.00" required /></div>
+              <span>Research spend cap <small>USDC · fixed at $1 for public testing</small></span>
+              <div class="currency-input"><span>$</span><input id="research-spend" name="max_research_spend" type="number" min="1" max="1" step="0.01" value="1.00" readonly required /></div>
             </label>
           </div>
 
-          <p class="form-disclosure">A request triggers a Buy x402 payment on Celo, up to your research cap. Add campaign details to generate tailored, ready-to-send DMs.</p>
-          <button class="submit-button" type="submit" disabled>
-            <span class="submit-label">Connect wallet to search</span><span class="button-arrow" aria-hidden="true">→</span>
-          </button>
+          <p class="form-disclosure">One live scout is available per public connection every 24 hours. Or explore demo results without making a payment. Add campaign details to generate tailored, ready-to-send DMs.</p>
+          <div class="form-actions">
+            <button class="submit-button" type="submit">
+              <span class="submit-label">Run live scout</span><span class="button-arrow" aria-hidden="true">→</span>
+            </button>
+            <button class="demo-button" id="demo-button" type="button">Explore demo results</button>
+          </div>
           <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
         </form>
       </section>

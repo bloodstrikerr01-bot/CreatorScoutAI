@@ -9,88 +9,17 @@ const results = document.querySelector("#results");
 const creatorGrid = document.querySelector("#creator-grid");
 const proofCard = document.querySelector("#proof-card");
 const resultsTitle = document.querySelector("#results-title");
-const walletButton = document.querySelector("#wallet-button");
-const walletButtonLabel = document.querySelector("#wallet-button-label");
-const walletStatus = document.querySelector("#wallet-status");
-const walletDisconnectKey = "creatorscout-wallet-disconnected";
-let connectedWalletAddress = null;
+const demoButton = document.querySelector("#demo-button");
 let isSubmitting = false;
 
 const selectedPlatform = () =>
   document.querySelector('input[name="platform"]:checked').value;
 
 function updateSearchAvailability() {
-  const connected = Boolean(connectedWalletAddress);
-  submitButton.disabled = !connected || isSubmitting;
+  submitButton.disabled = isSubmitting;
   submitLabel.textContent = isSubmitting
     ? "Searching public data…"
-    : connected
-      ? "Find creators"
-      : "Connect wallet to search";
-}
-
-function abbreviatedAddress(address) {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
-}
-
-function setWalletUI(address) {
-  connectedWalletAddress = address || null;
-  walletButton.classList.toggle("connected", Boolean(connectedWalletAddress));
-  walletButtonLabel.textContent = connectedWalletAddress
-    ? abbreviatedAddress(connectedWalletAddress)
-    : "Connect wallet";
-  updateSearchAvailability();
-}
-
-async function disconnectWallet(rememberChoice = true) {
-  if (window.ethereum && connectedWalletAddress) {
-    try {
-      await window.ethereum.request({
-        method: "wallet_revokePermissions",
-        params: [{ eth_accounts: {} }],
-      });
-    } catch (error) {
-      if (error?.code !== 4200) {
-        console.warn("Wallet permission revocation was not completed.", error);
-      }
-    }
-  }
-  if (rememberChoice) localStorage.setItem(walletDisconnectKey, "true");
-  setWalletUI(null);
-  walletStatus.textContent = "Disconnected. Connecting again will request wallet approval.";
-}
-
-async function connectWallet() {
-  if (!window.ethereum) {
-    walletStatus.textContent = "Install a Celo-compatible wallet to connect.";
-    return;
-  }
-
-  walletButton.disabled = true;
-  walletStatus.textContent = "Confirm the connection in your wallet.";
-  try {
-    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-    if (!accounts?.[0]) throw new Error("No wallet account was returned.");
-    localStorage.removeItem(walletDisconnectKey);
-    setWalletUI(accounts[0]);
-    walletStatus.textContent = "Connected once. Searches do not prompt this wallet for transactions.";
-  } catch (error) {
-    walletStatus.textContent = error?.code === 4001
-      ? "Wallet connection was cancelled."
-      : error.message || "Wallet connection could not be completed.";
-  } finally {
-    walletButton.disabled = false;
-  }
-}
-
-async function restoreWalletConnection() {
-  if (!window.ethereum || localStorage.getItem(walletDisconnectKey) === "true") return;
-  try {
-    const accounts = await window.ethereum.request({ method: "eth_accounts" });
-    if (accounts?.[0]) setWalletUI(accounts[0]);
-  } catch {
-    // The page remains usable if the wallet extension is unavailable.
-  }
+    : "Run live scout";
 }
 
 function updateInstagramField() {
@@ -144,7 +73,9 @@ async function copyMessage(button) {
 
 function renderResults(data, context) {
   const creators = data.shortlist || [];
-  resultsTitle.textContent = creators.length
+  resultsTitle.textContent = data.demo
+    ? "Demo creator shortlist"
+    : creators.length
     ? `${creators.length} creator${creators.length === 1 ? "" : "s"} found`
     : "No creator profiles found";
 
@@ -176,35 +107,18 @@ function renderResults(data, context) {
     });
   }
 
-  const transaction = data.proof?.celoTransactionHash || "No transaction identifier was returned.";
-  const endpoint = data.proof?.useBuyEndpoint || "";
-  proofCard.innerHTML = `<strong>BUY / CELO PROOF</strong><br>Endpoint: ${endpoint}<br>Transaction: ${transaction}`;
+  if (data.demo) {
+    proofCard.innerHTML = "<strong>DEMO MODE</strong><br>These are example public creator profiles. No Buy request or Celo payment was made.";
+  } else {
+    const transaction = data.proof?.celoTransactionHash || "No transaction identifier was returned.";
+    const endpoint = data.proof?.useBuyEndpoint || "";
+    proofCard.innerHTML = `<strong>BUY / CELO PROOF</strong><br>Endpoint: ${escapeHtml(endpoint)}<br>Transaction: ${escapeHtml(transaction)}`;
+  }
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 platformInputs.forEach((input) => input.addEventListener("change", updateInstagramField));
-walletButton.addEventListener("click", async () => {
-  if (connectedWalletAddress) {
-    walletButton.disabled = true;
-    walletStatus.textContent = "Disconnecting wallet…";
-    await disconnectWallet();
-    walletButton.disabled = false;
-  } else {
-    connectWallet();
-  }
-});
-if (window.ethereum) {
-  window.ethereum.on("accountsChanged", (accounts) => {
-    if (accounts?.[0]) {
-      localStorage.removeItem(walletDisconnectKey);
-      setWalletUI(accounts[0]);
-      walletStatus.textContent = "Wallet account changed.";
-    } else {
-      disconnectWallet(false);
-    }
-  });
-}
 document.querySelector("#new-scout").addEventListener("click", () => {
   results.hidden = true;
   document.querySelector("#scout").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -212,11 +126,6 @@ document.querySelector("#new-scout").addEventListener("click", () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!connectedWalletAddress) {
-    status.textContent = "Connect your wallet before starting a scout.";
-    status.className = "form-status error";
-    return;
-  }
   const budget = Number(document.querySelector("#budget").value);
   const maxResearchSpend = Number(document.querySelector("#research-spend").value);
 
@@ -265,6 +174,39 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+const demoProfiles = {
+  YouTube: [
+    { name: "Doctorly", handle: "@Doctorly", platform: "YOUTUBE", profileUrl: "https://youtube.com/@Doctorly" },
+    { name: "Beauty Within", handle: "@beautywithin", platform: "YOUTUBE", profileUrl: "https://youtube.com/@beautywithin" },
+    { name: "Lab Muffin Beauty Science", handle: "@LabMuffinBeautyScience", platform: "YOUTUBE", profileUrl: "https://youtube.com/@LabMuffinBeautyScience" },
+  ],
+  Instagram: [
+    { name: "Cristiano Ronaldo", handle: "@cristiano", platform: "INSTAGRAM", profileUrl: "https://instagram.com/cristiano", followers: 680083148 },
+  ],
+  TikTok: [
+    { name: "Laryssa Fernandes", handle: "@lafernandesss", platform: "TIKTOK", profileUrl: "https://tiktok.com/@lafernandesss", followers: 763580 },
+    { name: "Jasmin", handle: "@jasminnlily_", platform: "TIKTOK", profileUrl: "https://tiktok.com/@jasminnlily_", followers: 1178608 },
+    { name: "Kiyoko Beauty", handle: "@kiyokobeauty", platform: "TIKTOK", profileUrl: "https://tiktok.com/@kiyokobeauty", followers: 214374 },
+  ],
+  X: [
+    { name: "Life Pad", handle: "@XLifepad", platform: "X", profileUrl: "https://x.com/XLifepad", followers: 48926 },
+    { name: "Fatahillah", handle: "@Fatahilah03", platform: "X", profileUrl: "https://x.com/Fatahilah03", followers: 109035 },
+    { name: "Wellness wins", handle: "@Bro_Code_x", platform: "X", profileUrl: "https://x.com/Bro_Code_x", followers: 176934 },
+  ],
+};
+
+demoButton.addEventListener("click", () => {
+  const niche = document.querySelector("#niche").value.trim() || "your niche";
+  const platform = selectedPlatform();
+  const context = {
+    niche,
+    brandName: document.querySelector("#brand-name").value.trim(),
+    offer: document.querySelector("#campaign-offer").value.trim(),
+  };
+  renderResults({ demo: true, shortlist: demoProfiles[platform] || [] }, context);
+  status.className = "form-status";
+  status.textContent = "Showing example profiles. No payment was made.";
+});
+
 updateInstagramField();
 updateSearchAvailability();
-restoreWalletConnection();

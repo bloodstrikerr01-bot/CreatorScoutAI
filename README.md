@@ -68,6 +68,10 @@ The response includes `success`, campaign details, a normalized `shortlist`, the
 
 `proof.useBuyEndpoint` is the exact Buy endpoint used. `proof.celoTransactionHash` carries Buy's transaction identifier when returned. CreatorScout never falls back from a failed social-data request to another paid service, so a request cannot silently buy unrelated compute or risk a second charge.
 
+## Public demo controls
+
+The landing page includes **Explore demo results**, which renders example profiles without calling Buy or making a Celo payment. Public live scouts remain Buy-backed and are limited to one request per public connection every 24 hours. The server also rejects research caps above 1 USDC for public live requests.
+
 Invalid request data returns HTTP 400. If the Buy call fails or exceeds the spend cap, the API returns an error response and does not return a shortlist.
 
 ## Implementation notes

@@ -22,13 +22,6 @@ button { cursor: pointer; }
 .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--lime); color: var(--ink); font-family: Georgia, serif; font-size: 20px; }
 .brand-accent { color: var(--lime); }
 .nav-link { font-size: 13px; color: white; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.45); padding-bottom: 4px; }
-.wallet-control { position: relative; }
-.wallet-button { min-height: 34px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid #58635f; border-radius: 100px; padding: 0 12px; background: transparent; color: white; font: 500 11px "DM Mono", monospace; transition: background .15s, border-color .15s; }
-.wallet-button:hover { background: #29312f; border-color: #aeb9b4; }
-.wallet-button.connected { border-color: var(--lime); color: var(--lime); }
-.wallet-dot { width: 7px; height: 7px; border-radius: 50%; background: #8e9995; }
-.wallet-button.connected .wallet-dot { background: var(--lime); box-shadow: 0 0 0 4px rgba(201,255,85,.12); }
-.wallet-status { position: absolute; right: 0; top: calc(100% + 7px); width: max-content; max-width: 240px; margin: 0; color: #d0d8d4; font-size: 10px; line-height: 1.35; text-align: right; }
 .hero-copy { padding-top: 101px; max-width: 1160px; }
 .eyebrow { margin: 0 0 17px; color: inherit; font: 500 11px/1.2 "DM Mono", monospace; letter-spacing: .1em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
 .eyebrow span { display: inline-block; width: 8px; height: 8px; background: var(--lime); border-radius: 50%; }
@@ -80,6 +73,9 @@ h2 { font-size: clamp(34px, 4vw, 54px); line-height: 1.03; }
 .submit-button:hover { background: #2d3532; transform: translateY(-2px); }
 .submit-button:disabled { cursor: wait; opacity: .7; transform: none; }
 .button-arrow { color: var(--lime); font-size: 21px; }
+.form-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.demo-button { min-height: 54px; border: 1px solid var(--ink); padding: 0 15px; background: transparent; color: var(--ink); font-size: 11px; font-weight: 800; }
+.demo-button:hover { background: var(--mint); }
 .form-status { min-height: 18px; margin: 13px 0 0; color: var(--muted); font-size: 12px; }
 .form-status.error { color: #b53527; }
 
@@ -128,5 +124,6 @@ footer { border-top: 1px solid var(--line); padding: 22px max(5vw, 32px); max-wi
 
 @media (max-width: 430px) {
   .budget-grid, .brief-grid { grid-template-columns: 1fr; gap: 0; }
+  .form-actions { grid-template-columns: 1fr; }
   .results-heading { align-items: start; flex-direction: column; }
 }
