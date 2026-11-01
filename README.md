@@ -3,6 +3,7 @@
 > **Track:** Build with Buy  
 > **Team Tag:** `celo_07fa06ecd2c7`  
 > **Workshop:** [Celo Build with Buy](https://www.youtube.com/live/w1A_mP3r8aQ)
+> **Video Demo:** https://youtu.be/94BKDnjzZ2Q
 
 CreatorScout AI is a prototype creator-research API. It routes a niche search to a Buy social-data tool, pays for the request through x402 on Celo, and ranks returned creator records with simple relevance and engagement heuristics.
 
