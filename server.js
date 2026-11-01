@@ -4,15 +4,19 @@ import express from "express";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { executeBuyScoutJob } from "./buy.js";
+import {
+  CUSTOMER_PAYMENT_AMOUNT_USD,
+  getPaymentConfig,
+  verifyCustomerPayment,
+} from "./payment.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const SUPPORTED_PLATFORMS = new Set(["youtube", "instagram", "tiktok", "x"]);
-const LIVE_SCOUT_SPEND_CAP_USD = 1;
-const LIVE_SCOUT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const liveScoutReservations = new Map();
+const LIVE_SCOUT_SPEND_CAP_USD = Number(CUSTOMER_PAYMENT_AMOUNT_USD);
+const consumedPaymentTransactions = new Set();
 
 app.set("trust proxy", 1);
 app.use(cors());
@@ -23,21 +27,6 @@ const isNonEmptyString = (value, maxLength = 100) =>
   typeof value === "string" &&
   value.trim().length > 0 &&
   value.trim().length <= maxLength;
-
-function reserveLiveScout(clientKey) {
-  const now = Date.now();
-  for (const [key, expiresAt] of liveScoutReservations) {
-    if (expiresAt <= now) {
-      liveScoutReservations.delete(key);
-    }
-  }
-  const existingReservation = liveScoutReservations.get(clientKey);
-  if (existingReservation && existingReservation > now) {
-    return existingReservation;
-  }
-  liveScoutReservations.set(clientKey, now + LIVE_SCOUT_WINDOW_MS);
-  return null;
-}
 
 function formatShortlist(platform, niche, rawData) {
   const platformKey = platform.toLowerCase();
@@ -292,6 +281,18 @@ function formatShortlist(platform, niche, rawData) {
   return [...profiles.values()].slice(0, 5);
 }
 
+app.get("/api/payment-config", (request, response) => {
+  const paymentConfig = getPaymentConfig();
+  if (!paymentConfig) {
+    return response.status(503).json({
+      success: false,
+      error: "Customer payments are not configured",
+      message: "Configure AGENT_PRIVATE_KEY with the Celo wallet that pays Buy.",
+    });
+  }
+  return response.json({ success: true, payment: paymentConfig });
+});
+
 app.post("/api/scout", async (request, response) => {
   const {
     niche = "skincare",
@@ -299,6 +300,8 @@ app.post("/api/scout", async (request, response) => {
     budget = 300,
     max_research_spend: maxResearchSpend = 1,
     instagram_handle: instagramHandle,
+    payment_tx_hash: paymentTransactionHash,
+    payment_from: paymentSenderAddress,
   } = request.body ?? {};
 
   if (!isNonEmptyString(niche)) {
@@ -341,10 +344,10 @@ app.post("/api/scout", async (request, response) => {
       error: "max_research_spend cannot exceed the campaign budget",
     });
   }
-  if (maxResearchSpend > LIVE_SCOUT_SPEND_CAP_USD) {
+  if (maxResearchSpend !== LIVE_SCOUT_SPEND_CAP_USD) {
     return response.status(400).json({
       success: false,
-      error: "The public live scout is capped at 1 USDC per request",
+      error: `The live scout price is ${CUSTOMER_PAYMENT_AMOUNT_USD} USDC per request`,
     });
   }
   if (
@@ -358,18 +361,53 @@ app.post("/api/scout", async (request, response) => {
     });
   }
 
-  const retryAt = reserveLiveScout(request.ip || request.socket.remoteAddress || "unknown");
-  if (retryAt) {
-    return response.status(429).json({
+  if (
+    typeof paymentTransactionHash !== "string" ||
+    !/^0x[0-9a-fA-F]{64}$/.test(paymentTransactionHash) ||
+    typeof paymentSenderAddress !== "string"
+  ) {
+    return response.status(400).json({
       success: false,
-      error: "Live Scout Limit Reached",
-      message: "This device has already used its live scout. Explore the demo results or try again later.",
-      retryAt: new Date(retryAt).toISOString(),
+      error: "A customer payment is required",
+      message: "Submit the tagged 0.04 USDC Celo payment transaction to run a live scout.",
     });
   }
 
+  const paymentKey = paymentTransactionHash.toLowerCase();
+  if (consumedPaymentTransactions.has(paymentKey)) {
+    return response.status(409).json({
+      success: false,
+      error: "Payment already used",
+      message: "This payment transaction has already been used for a live scout.",
+    });
+  }
+
+  let customerPayment;
+  try {
+    customerPayment = await verifyCustomerPayment({
+      transactionHash: paymentTransactionHash,
+      senderAddress: paymentSenderAddress,
+    });
+  } catch (error) {
+    console.error("[Customer Payment Verification Error]:", error);
+    return response.status(422).json({
+      success: false,
+      error: "Customer Payment Verification Failed",
+      message: error instanceof Error ? error.message : "Unknown payment verification error",
+    });
+  }
+
+  if (consumedPaymentTransactions.has(paymentKey)) {
+    return response.status(409).json({
+      success: false,
+      error: "Payment already used",
+      message: "This payment transaction has already been used for a live scout.",
+    });
+  }
+  consumedPaymentTransactions.add(paymentKey);
+
   console.info(
-    `[Scout API] New request: ${niche.trim()} | ${platform.trim()} | spend cap $${maxResearchSpend}`,
+    `[Scout API] Paid request: ${niche.trim()} | ${platform.trim()} | customer payment ${paymentTransactionHash}`,
   );
 
   try {
@@ -400,9 +438,10 @@ app.post("/api/scout", async (request, response) => {
       shortlist,
       buyRawData: jobResult.rawData,
       proof: {
-        teamTag: jobResult.teamTag,
+        customerPayment,
         useBuyEndpoint: jobResult.targetUrl,
         celoTransactionHash: jobResult.txHash,
+        agentAttributionTag: process.env.TEAM_TAG || "celo_07fa06ecd2c7",
       },
     });
   } catch (error) {

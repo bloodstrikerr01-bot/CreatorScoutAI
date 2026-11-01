@@ -10,16 +10,182 @@ const creatorGrid = document.querySelector("#creator-grid");
 const proofCard = document.querySelector("#proof-card");
 const resultsTitle = document.querySelector("#results-title");
 const demoButton = document.querySelector("#demo-button");
+const walletButton = document.querySelector("#wallet-button");
+const walletButtonLabel = document.querySelector("#wallet-button-label");
+const walletStatus = document.querySelector("#wallet-status");
+const walletDisconnectKey = "creatorscout-wallet-disconnected";
+const celoChainHex = "0xa4ec";
+let connectedWalletAddress = null;
 let isSubmitting = false;
 
 const selectedPlatform = () =>
   document.querySelector('input[name="platform"]:checked').value;
 
 function updateSearchAvailability() {
-  submitButton.disabled = isSubmitting;
+  submitButton.disabled = isSubmitting || !connectedWalletAddress;
   submitLabel.textContent = isSubmitting
-    ? "Searching public data…"
-    : "Run live scout";
+    ? "Processing payment…"
+    : connectedWalletAddress
+      ? "Pay & run live scout"
+      : "Connect Celo wallet to pay";
+}
+
+function abbreviatedAddress(address) {
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+function setWalletUI(address) {
+  connectedWalletAddress = address || null;
+  walletButton.classList.toggle("connected", Boolean(connectedWalletAddress));
+  walletButtonLabel.textContent = connectedWalletAddress
+    ? abbreviatedAddress(connectedWalletAddress)
+    : "Connect wallet";
+  updateSearchAvailability();
+}
+
+async function disconnectWallet(rememberChoice = true) {
+  if (window.ethereum && connectedWalletAddress) {
+    try {
+      await window.ethereum.request({
+        method: "wallet_revokePermissions",
+        params: [{ eth_accounts: {} }],
+      });
+    } catch (error) {
+      if (error?.code !== 4200) {
+        console.warn("Wallet permission revocation was not completed.", error);
+      }
+    }
+  }
+  if (rememberChoice) localStorage.setItem(walletDisconnectKey, "true");
+  setWalletUI(null);
+  walletStatus.textContent = "Disconnected from CreatorScout.";
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    walletStatus.textContent = "Install a compatible browser wallet to connect.";
+    return;
+  }
+  walletButton.disabled = true;
+  walletStatus.textContent = "Confirm the connection in your wallet.";
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    if (!accounts?.[0]) throw new Error("No wallet account was returned.");
+    localStorage.removeItem(walletDisconnectKey);
+    setWalletUI(accounts[0]);
+    walletStatus.textContent = "Connected. You will confirm one USDC payment for each live scout.";
+  } catch (error) {
+    walletStatus.textContent = error?.code === 4001
+      ? "Wallet connection was cancelled."
+      : error.message || "Wallet connection could not be completed.";
+  } finally {
+    walletButton.disabled = false;
+  }
+}
+
+async function restoreWalletConnection() {
+  if (!window.ethereum || localStorage.getItem(walletDisconnectKey) === "true") return;
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_accounts" });
+    if (accounts?.[0]) setWalletUI(accounts[0]);
+  } catch {
+    // The app remains usable when a wallet extension is unavailable.
+  }
+}
+
+async function fetchPaymentConfig() {
+  const response = await fetch("/api/payment-config");
+  const data = await response.json();
+  if (!response.ok || !data.success || !data.payment) {
+    throw new Error(data.message || data.error || "Live payments are unavailable right now.");
+  }
+  return data.payment;
+}
+
+async function ensureCeloNetwork() {
+  const currentChain = await window.ethereum.request({ method: "eth_chainId" });
+  if (currentChain?.toLowerCase() === celoChainHex) return;
+
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: celoChainHex }],
+    });
+  } catch (error) {
+    if (error?.code !== 4902) throw error;
+    await window.ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [{
+        chainId: celoChainHex,
+        chainName: "Celo Mainnet",
+        nativeCurrency: { name: "Celo", symbol: "CELO", decimals: 18 },
+        rpcUrls: ["https://forno.celo.org"],
+        blockExplorerUrls: ["https://celoscan.io"],
+      }],
+    });
+  }
+}
+
+function buildUsdcTransferData(recipientAddress, amountAtomic, attributionSuffix) {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(recipientAddress)) {
+    throw new Error("The project wallet address is invalid.");
+  }
+  if (!/^0x[0-9a-fA-F]*$/.test(attributionSuffix || "")) {
+    throw new Error("The payment attribution data is invalid.");
+  }
+  const amount = BigInt(amountAtomic);
+  if (amount <= 0n) throw new Error("The live scout payment amount is invalid.");
+
+  const recipient = recipientAddress.slice(2).toLowerCase().padStart(64, "0");
+  const amountWord = amount.toString(16).padStart(64, "0");
+  return `0xa9059cbb${recipient}${amountWord}${attributionSuffix.slice(2)}`;
+}
+
+async function waitForPaymentReceipt(transactionHash) {
+  const timeoutAt = Date.now() + 120000;
+  while (Date.now() < timeoutAt) {
+    const receipt = await window.ethereum.request({
+      method: "eth_getTransactionReceipt",
+      params: [transactionHash],
+    });
+    if (receipt) {
+      if (receipt.status === "0x0") throw new Error("The Celo USDC payment was rejected.");
+      return receipt;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+  }
+  throw new Error("The payment is still confirming. Please wait, then try the same scout again.");
+}
+
+async function makeCustomerPayment(payment) {
+  if (!window.ethereum || !connectedWalletAddress) {
+    throw new Error("Connect your Celo wallet before running a live scout.");
+  }
+  await ensureCeloNetwork();
+  const accounts = await window.ethereum.request({ method: "eth_accounts" });
+  if (!accounts?.[0] || accounts[0].toLowerCase() !== connectedWalletAddress.toLowerCase()) {
+    setWalletUI(null);
+    throw new Error("Your wallet connection changed. Connect it again to continue.");
+  }
+
+  const transactionHash = await window.ethereum.request({
+    method: "eth_sendTransaction",
+    params: [{
+      from: connectedWalletAddress,
+      to: payment.tokenAddress,
+      value: "0x0",
+      data: buildUsdcTransferData(
+        payment.recipientAddress,
+        payment.amountAtomic,
+        payment.attributionSuffix,
+      ),
+    }],
+  });
+  if (!/^0x[0-9a-fA-F]{64}$/.test(transactionHash || "")) {
+    throw new Error("Your wallet did not return a Celo payment transaction hash.");
+  }
+  await waitForPaymentReceipt(transactionHash);
+  return transactionHash;
 }
 
 function updateInstagramField() {
@@ -110,19 +276,48 @@ function renderResults(data, context) {
   if (data.demo) {
     proofCard.innerHTML = "<strong>DEMO MODE</strong><br>These are example public creator profiles. No Buy request or Celo payment was made.";
   } else {
+    const customerPayment = data.proof?.customerPayment?.transactionHash;
     const transaction = data.proof?.celoTransactionHash || "No transaction identifier was returned.";
     const endpoint = data.proof?.useBuyEndpoint || "";
+    const hasCustomerPaymentHash = /^0x[a-fA-F0-9]{64}$/.test(customerPayment || "");
     const hasTransactionHash = /^0x[a-fA-F0-9]{64}$/.test(transaction);
+    const customerProof = hasCustomerPaymentHash
+      ? `<a class="proof-link" href="https://celoscan.io/tx/${customerPayment}" target="_blank" rel="noreferrer">View your USDC payment on CeloScan <span aria-hidden="true">↗</span></a>`
+      : "Customer payment receipt was not returned.";
     const transactionProof = hasTransactionHash
       ? `<a class="proof-link" href="https://celoscan.io/tx/${transaction}" target="_blank" rel="noreferrer">View settlement on CeloScan <span aria-hidden="true">↗</span></a>`
       : `Transaction: ${escapeHtml(transaction)}`;
-    proofCard.innerHTML = `<strong>BUY / CELO PROOF</strong><br>Endpoint: ${escapeHtml(endpoint)}<br>${transactionProof}`;
+    proofCard.innerHTML = `<strong>CELO PAYMENT PROOF</strong><br>${customerProof}<br>Buy endpoint: ${escapeHtml(endpoint)}<br>${transactionProof}`;
   }
   results.hidden = false;
   results.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 platformInputs.forEach((input) => input.addEventListener("change", updateInstagramField));
+walletButton.addEventListener("click", async () => {
+  if (connectedWalletAddress) {
+    walletButton.disabled = true;
+    walletStatus.textContent = "Disconnecting wallet…";
+    await disconnectWallet();
+    walletButton.disabled = false;
+  } else {
+    await connectWallet();
+  }
+});
+if (window.ethereum) {
+  window.ethereum.on("accountsChanged", (accounts) => {
+    if (accounts?.[0]) {
+      localStorage.removeItem(walletDisconnectKey);
+      setWalletUI(accounts[0]);
+      walletStatus.textContent = "Wallet account changed.";
+    } else {
+      disconnectWallet(false);
+    }
+  });
+  window.ethereum.on("chainChanged", () => {
+    walletStatus.textContent = "Wallet network changed. Live scouts use Celo Mainnet.";
+  });
+}
 document.querySelector("#new-scout").addEventListener("click", () => {
   results.hidden = true;
   document.querySelector("#scout").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -130,6 +325,11 @@ document.querySelector("#new-scout").addEventListener("click", () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!connectedWalletAddress) {
+    status.textContent = "Connect your Celo wallet before running a live scout.";
+    status.className = "form-status error";
+    return;
+  }
   const budget = Number(document.querySelector("#budget").value);
   const maxResearchSpend = Number(document.querySelector("#research-spend").value);
 
@@ -157,9 +357,19 @@ form.addEventListener("submit", async (event) => {
   isSubmitting = true;
   updateSearchAvailability();
   status.className = "form-status";
-  status.textContent = "Buy is preparing your research request.";
+  status.textContent = "Preparing your Celo USDC payment.";
 
   try {
+    const payment = await fetchPaymentConfig();
+    const paymentAmount = Number(payment.amountUsd);
+    if (!Number.isFinite(paymentAmount) || paymentAmount !== maxResearchSpend) {
+      throw new Error("The displayed live scout price no longer matches the payment configuration. Refresh and try again.");
+    }
+    status.textContent = `Confirm the ${payment.amountUsd} USDC payment in your wallet.`;
+    const paymentTransactionHash = await makeCustomerPayment(payment);
+    status.textContent = "Payment confirmed. CreatorScout is verifying it and running Buy.";
+    payload.payment_tx_hash = paymentTransactionHash;
+    payload.payment_from = connectedWalletAddress;
     const response = await fetch("/api/scout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -214,3 +424,4 @@ demoButton.addEventListener("click", () => {
 
 updateInstagramField();
 updateSearchAvailability();
+restoreWalletConnection();
